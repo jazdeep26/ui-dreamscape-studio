@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,14 +16,23 @@ import {
   Receipt,
   User
 } from "lucide-react";
-import { mockPayments, mockClients, getClientById } from "@/data/mockData";
+import { mockPayments, mockClients } from "@/data/mockData";
+import { Payment, Client } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PaymentForm } from "@/components/PaymentForm";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Payments() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMethod, setFilterMethod] = useState<string>("all");
+  const [payments, setPayments] = useLocalStorage<Payment[]>('clinic_payments', mockPayments);
+  const [clients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const getClientById = (id: string) => clients.find(c => c.id === id);
   
-  const filteredPayments = mockPayments.filter(payment => {
+  const filteredPayments = payments.filter(payment => {
     const client = getClientById(payment.clientId);
     const matchesSearch = client?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          payment.notes?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -31,20 +41,31 @@ export default function Payments() {
     return matchesSearch && matchesFilter;
   });
 
-  const totalPayments = mockPayments.reduce((sum, payment) => sum + payment.amount, 0);
-  const recentPayments = mockPayments.slice(0, 5);
+  const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+  const handleAddPayment = (paymentData: Omit<Payment, 'id' | 'sessionIds'>) => {
+    const newPayment: Payment = {
+      id: `pay${Date.now()}`,
+      ...paymentData,
+      sessionIds: [],
+    };
+    setPayments(prev => [newPayment, ...prev]);
+  };
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Payments</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Payments</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Track client payments and manage outstanding balances.
           </p>
         </div>
-        <Button className="bg-gradient-to-r from-success to-accent hover:from-success/90 hover:to-accent/90">
+        <Button 
+          onClick={() => setIsFormOpen(true)}
+          className="bg-gradient-to-r from-success to-accent hover:from-success/90 hover:to-accent/90 w-full sm:w-auto"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Record Payment
         </Button>
@@ -244,6 +265,14 @@ export default function Payments() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Payment Form Dialog */}
+      <PaymentForm
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        clients={clients}
+        onSave={handleAddPayment}
+      />
     </div>
   );
 }

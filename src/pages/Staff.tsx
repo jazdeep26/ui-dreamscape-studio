@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Staff() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [staff, setStaff] = useState<Staff[]>(mockStaff);
+  const [staff, setStaff] = useLocalStorage<Staff[]>('clinic_staff', mockStaff);
   const [timelineFilter, setTimelineFilter] = useState("all-time");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | undefined>();
@@ -136,19 +137,20 @@ export default function Staff() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Staff</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Staff</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your clinic staff and track their performance.
           </p>
         </div>
         <Button 
           onClick={() => setIsFormOpen(true)}
-          className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90"
+          className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 w-full sm:w-auto"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add Staff Member
+          <span className="hidden sm:inline">Add Staff Member</span>
+          <span className="sm:hidden">Add Staff</span>
         </Button>
       </div>
 

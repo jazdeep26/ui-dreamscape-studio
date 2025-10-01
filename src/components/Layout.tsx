@@ -50,33 +50,34 @@ export default function Layout() {
       {/* Main content */}
       <div className="lg:pl-64">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-4 sm:gap-x-6 sm:px-6 lg:px-8">
+        <div className="sticky top-0 z-40 flex h-14 sm:h-16 shrink-0 items-center gap-x-2 sm:gap-x-4 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 px-3 sm:px-6 lg:px-8">
           <Button
             variant="ghost"
             size="sm"
-            className="lg:hidden"
+            className="lg:hidden p-2"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-5 w-5" />
             <span className="sr-only">Open sidebar</span>
           </Button>
           
-          <div className="flex flex-1 items-center justify-between">
-            <h1 className="text-lg font-semibold text-foreground">
-              PulseBook Clinic Management
+          <div className="flex flex-1 items-center justify-between min-w-0">
+            <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">
+              PulseBook
             </h1>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                Dr. Admin
+              <Button variant="outline" size="sm" className="text-xs sm:text-sm px-2 sm:px-4">
+                <span className="hidden sm:inline">Dr. Admin</span>
+                <span className="sm:hidden">Admin</span>
               </Button>
             </div>
           </div>
         </div>
 
         {/* Page content */}
-        <main className="py-6">
-          <div className="px-4 sm:px-6 lg:px-8">
+        <main className="py-4 sm:py-6">
+          <div className="px-3 sm:px-6 lg:px-8">
             <Outlet />
           </div>
         </main>

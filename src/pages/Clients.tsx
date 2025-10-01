@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Clients() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
   const [timelineFilter, setTimelineFilter] = useState("current-month");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | undefined>();
@@ -151,16 +152,16 @@ export default function Clients() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Clients</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your clinic clients and track their balances.
           </p>
         </div>
         <Button 
           onClick={() => setIsFormOpen(true)}
-          className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
+          className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 w-full sm:w-auto"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Client
@@ -180,10 +181,10 @@ export default function Clients() {
                 className="pl-9 focus-ring"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <Select value={timelineFilter} onValueChange={setTimelineFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <Filter className="mr-2 h-4 w-4" />
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <Filter className="mr-2 h-4 w-4 hidden sm:inline" />
                   <SelectValue />
                   <ChevronDown className="ml-2 h-4 w-4" />
                 </SelectTrigger>
@@ -195,7 +196,7 @@ export default function Clients() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hidden sm:flex">
                 Export
               </Button>
             </div>

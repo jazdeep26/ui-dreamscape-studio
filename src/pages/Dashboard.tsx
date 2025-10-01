@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,25 +12,38 @@ import {
   CheckCircle,
   Plus
 } from "lucide-react";
-import { mockDashboardStats, mockSessions, getTodaySessions, getClientById, getStaffById } from "@/data/mockData";
+import { mockSessions, mockClients, mockStaff, mockPayments } from "@/data/mockData";
+import { Session, Client, Staff, Payment } from "@/types";
 import { Link } from "react-router-dom";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export default function Dashboard() {
-  const stats = mockDashboardStats;
-  const todaySessions = getTodaySessions();
-  const recentSessions = mockSessions.slice(0, 4);
+  const [sessions] = useLocalStorage<Session[]>('clinic_sessions', mockSessions);
+  const [clients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
+  const [staff] = useLocalStorage<Staff[]>('clinic_staff', mockStaff);
+  const [payments] = useLocalStorage<Payment[]>('clinic_payments', mockPayments);
+
+  const getClientById = (id: string) => clients.find(c => c.id === id);
+  const getStaffById = (id: string) => staff.find(s => s.id === id);
+
+  const today = new Date().toISOString().split('T')[0];
+  const todaySessions = sessions.filter(session => session.date === today);
+  const recentSessions = sessions.slice(0, 4);
+  const pendingSessions = sessions.filter(s => s.status === 'pending').length;
+  const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const outstandingBalance = clients.reduce((sum, client) => sum + client.balance, 0);
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Welcome back! Here's your clinic overview for today.
           </p>
         </div>
-        <Button asChild className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
+        <Button asChild className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 w-full sm:w-auto">
           <Link to="/calendar">
             <Plus className="mr-2 h-4 w-4" />
             New Session
@@ -45,7 +59,7 @@ export default function Dashboard() {
             <Calendar className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{stats.todaySessions}</div>
+            <div className="text-2xl font-bold text-primary">{todaySessions.length}</div>
             <p className="text-xs text-muted-foreground">
               +2 from yesterday
             </p>
@@ -58,7 +72,7 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">{stats.pendingSessions}</div>
+            <div className="text-2xl font-bold text-warning">{pendingSessions}</div>
             <p className="text-xs text-muted-foreground">
               Require attention
             </p>
@@ -71,7 +85,7 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">₹{stats.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">₹{totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               +15% from last month
             </p>
@@ -84,9 +98,9 @@ export default function Dashboard() {
             <TrendingUp className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">₹{stats.outstandingBalance}</div>
+            <div className="text-2xl font-bold text-accent">₹{outstandingBalance}</div>
             <p className="text-xs text-muted-foreground">
-              From 5 clients
+              From {clients.filter(c => c.balance > 0).length} clients
             </p>
           </CardContent>
         </Card>

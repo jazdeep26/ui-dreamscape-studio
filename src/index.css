@@ -217,4 +217,31 @@ All colors MUST be HSL. Medical-inspired palette for trust and clarity.
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary;
   }
+
+  /* Mobile-first improvements */
+  @media (max-width: 640px) {
+    h1 {
+      @apply text-2xl;
+    }
+    
+    h2 {
+      @apply text-xl;
+    }
+
+    .card-shadow {
+      @apply shadow-sm;
+    }
+
+    /* Better touch targets */
+    button, a {
+      min-height: 44px;
+    }
+  }
+
+  /* Improved mobile spacing */
+  @media (max-width: 768px) {
+    .space-y-8 > * + * {
+      margin-top: 1.5rem;
+    }
+  }
 }

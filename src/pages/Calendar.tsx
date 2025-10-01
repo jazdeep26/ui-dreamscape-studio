@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,24 +15,45 @@ import {
   CheckCircle,
   X
 } from "lucide-react";
-import { mockSessions, getClientById, getStaffById } from "@/data/mockData";
+import { mockSessions, mockClients, mockStaff } from "@/data/mockData";
+import { Session, Client, Staff } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function CalendarView() {
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [sessions, setSessions] = useLocalStorage<Session[]>('clinic_sessions', mockSessions);
+  const [clients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
+  const [staff] = useLocalStorage<Staff[]>('clinic_staff', mockStaff);
+
+  const getClientById = (id: string) => clients.find(c => c.id === id);
+  const getStaffById = (id: string) => staff.find(s => s.id === id);
 
   // Get current month sessions
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
   
-  const monthSessions = mockSessions.filter(session => {
+  const monthSessions = sessions.filter(session => {
     const sessionDate = new Date(session.date);
     return sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === currentYear;
   });
+
+  const handleUpdateSessionStatus = (sessionId: string, status: 'completed' | 'cancelled') => {
+    setSessions(prev => prev.map(session => 
+      session.id === sessionId 
+        ? { ...session, status }
+        : session
+    ));
+    toast({
+      title: `Session ${status}`,
+      description: `The session has been marked as ${status}.`,
+    });
+  };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
@@ -72,16 +94,16 @@ export default function CalendarView() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Calendar</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage sessions and appointments across your clinic.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={viewMode} onValueChange={(value: 'month' | 'week' | 'day') => setViewMode(value)}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-full sm:w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -188,7 +210,7 @@ export default function CalendarView() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockSessions
+            {sessions
               .filter(session => session.date === new Date().toISOString().split('T')[0])
               .map((session) => {
                 const client = getClientById(session.clientId);
@@ -202,6 +224,7 @@ export default function CalendarView() {
                     staff={staff}
                     isCompact={false}
                     showActions={true}
+                    onUpdateStatus={handleUpdateSessionStatus}
                   />
                 );
               })}
@@ -218,13 +241,15 @@ function SessionCard({
   client, 
   staff, 
   isCompact = false, 
-  showActions = false 
+  showActions = false,
+  onUpdateStatus 
 }: {
   session: any;
   client: any;
   staff: any;
   isCompact?: boolean;
   showActions?: boolean;
+  onUpdateStatus?: (sessionId: string, status: 'completed' | 'cancelled') => void;
 }) {
   if (isCompact) {
     return (
@@ -266,13 +291,21 @@ function SessionCard({
           {session.status}
         </Badge>
         
-        {showActions && session.status !== 'completed' && (
+        {showActions && session.status !== 'completed' && session.status !== 'cancelled' && onUpdateStatus && (
           <div className="flex gap-2">
-            <Button size="sm" variant="outline">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => onUpdateStatus(session.id, 'cancelled')}
+            >
               <X className="h-4 w-4 mr-1" />
               Cancel
             </Button>
-            <Button size="sm" className="bg-success hover:bg-success/90">
+            <Button 
+              size="sm" 
+              className="bg-success hover:bg-success/90"
+              onClick={() => onUpdateStatus(session.id, 'completed')}
+            >
               <CheckCircle className="h-4 w-4 mr-1" />
               Mark Done
             </Button>
