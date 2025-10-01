@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,10 +44,13 @@ interface PaymentFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clients: Client[];
+  payment?: Payment;
+  prefilledClientId?: string;
+  prefilledAmount?: number;
   onSave: (payment: Omit<Payment, 'id' | 'sessionIds'>) => void;
 }
 
-export function PaymentForm({ open, onOpenChange, clients, onSave }: PaymentFormProps) {
+export function PaymentForm({ open, onOpenChange, clients, payment, prefilledClientId, prefilledAmount, onSave }: PaymentFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -62,13 +65,42 @@ export function PaymentForm({ open, onOpenChange, clients, onSave }: PaymentForm
     },
   });
 
+  // Reset form when payment/prefilled data changes
+  useEffect(() => {
+    if (payment) {
+      form.reset({
+        clientId: payment.clientId,
+        amount: payment.amount,
+        date: payment.date,
+        method: payment.method,
+        notes: payment.notes || "",
+      });
+    } else if (prefilledClientId || prefilledAmount) {
+      form.reset({
+        clientId: prefilledClientId || "",
+        amount: prefilledAmount || 0,
+        date: new Date().toISOString().split('T')[0],
+        method: "cash",
+        notes: "",
+      });
+    } else {
+      form.reset({
+        clientId: "",
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        method: "cash",
+        notes: "",
+      });
+    }
+  }, [payment, prefilledClientId, prefilledAmount, form]);
+
   const onSubmit = async (data: PaymentFormData) => {
     setIsSubmitting(true);
     try {
       onSave(data as Omit<Payment, 'id' | 'sessionIds'>);
       toast({
-        title: "Payment recorded",
-        description: "Payment has been recorded successfully.",
+        title: payment ? "Payment updated" : "Payment recorded",
+        description: payment ? "Payment has been updated successfully." : "Payment has been recorded successfully.",
       });
       onOpenChange(false);
       form.reset();
@@ -87,9 +119,9 @@ export function PaymentForm({ open, onOpenChange, clients, onSave }: PaymentForm
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle>{payment ? "Edit Payment" : "Record Payment"}</DialogTitle>
           <DialogDescription>
-            Record a new payment from a client.
+            {payment ? "Update payment details below." : "Record a new payment from a client."}
           </DialogDescription>
         </DialogHeader>
         
@@ -209,7 +241,7 @@ export function PaymentForm({ open, onOpenChange, clients, onSave }: PaymentForm
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Recording..." : "Record Payment"}
+                {isSubmitting ? (payment ? "Updating..." : "Recording...") : (payment ? "Update Payment" : "Record Payment")}
               </Button>
             </div>
           </form>

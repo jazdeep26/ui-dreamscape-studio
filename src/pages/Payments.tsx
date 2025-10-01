@@ -27,8 +27,11 @@ export default function Payments() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMethod, setFilterMethod] = useState<string>("all");
   const [payments, setPayments] = useLocalStorage<Payment[]>('clinic_payments', mockPayments);
-  const [clients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
+  const [clients, setClients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | undefined>();
+  const [prefilledClientId, setPrefilledClientId] = useState<string | undefined>();
+  const [prefilledAmount, setPrefilledAmount] = useState<number | undefined>();
 
   const getClientById = (id: string) => clients.find(c => c.id === id);
   
@@ -50,6 +53,54 @@ export default function Payments() {
       sessionIds: [],
     };
     setPayments(prev => [newPayment, ...prev]);
+    
+    // Update client balance
+    setClients(prev => prev.map(client =>
+      client.id === paymentData.clientId
+        ? { ...client, balance: Math.max(0, client.balance - paymentData.amount) }
+        : client
+    ));
+  };
+
+  const handleEditPayment = (paymentData: Omit<Payment, 'id' | 'sessionIds'>) => {
+    if (!editingPayment) return;
+    
+    const oldAmount = editingPayment.amount;
+    const oldClientId = editingPayment.clientId;
+    
+    setPayments(prev => prev.map(payment =>
+      payment.id === editingPayment.id
+        ? { ...payment, ...paymentData }
+        : payment
+    ));
+    
+    // Adjust client balances
+    setClients(prev => prev.map(client => {
+      if (client.id === oldClientId && client.id === paymentData.clientId) {
+        // Same client, adjust by difference
+        return { ...client, balance: Math.max(0, client.balance + oldAmount - paymentData.amount) };
+      } else if (client.id === oldClientId) {
+        // Refund to old client
+        return { ...client, balance: client.balance + oldAmount };
+      } else if (client.id === paymentData.clientId) {
+        // Charge new client
+        return { ...client, balance: Math.max(0, client.balance - paymentData.amount) };
+      }
+      return client;
+    }));
+    
+    setEditingPayment(undefined);
+  };
+
+  const openQuickPayment = (client: Client) => {
+    setPrefilledClientId(client.id);
+    setPrefilledAmount(client.balance);
+    setIsFormOpen(true);
+  };
+
+  const openEditPayment = (payment: Payment) => {
+    setEditingPayment(payment);
+    setIsFormOpen(true);
   };
 
   return (
@@ -91,12 +142,12 @@ export default function Payments() {
             <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
             <TrendingUp className="h-4 w-4 text-warning" />
           </CardHeader>
-          <CardContent>
+            <CardContent>
             <div className="text-2xl font-bold text-warning">
-              ₹{mockClients.reduce((sum, client) => sum + client.balance, 0).toLocaleString()}
+              ₹{clients.reduce((sum, client) => sum + client.balance, 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              From {mockClients.filter(c => c.balance > 0).length} clients
+              From {clients.filter(c => c.balance > 0).length} clients
             </p>
           </CardContent>
         </Card>
@@ -108,7 +159,7 @@ export default function Payments() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {Math.round((totalPayments / (totalPayments + mockClients.reduce((sum, client) => sum + client.balance, 0))) * 100)}%
+              {Math.round((totalPayments / (totalPayments + clients.reduce((sum, client) => sum + client.balance, 0))) * 100)}%
             </div>
             <p className="text-xs text-muted-foreground">
               Collection efficiency
@@ -163,26 +214,30 @@ export default function Payments() {
             {filteredPayments.map((payment) => {
               const client = getClientById(payment.clientId);
               return (
-                <div key={payment.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/30 transition-colors">
+                <div 
+                  key={payment.id} 
+                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => openEditPayment(payment)}
+                >
                   <div className="flex items-center gap-4">
                     <div className="p-2 rounded-lg bg-success-soft text-success">
                       <Receipt className="h-4 w-4" />
                     </div>
                     
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{client?.name}</span>
                         <Badge variant="secondary" className="text-xs">
                           {payment.method.replace('_', ' ').toUpperCase()}
                         </Badge>
                       </div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-4">
+                      <div className="text-sm text-muted-foreground flex items-center gap-2 sm:gap-4 flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {new Date(payment.date).toLocaleDateString()}
                         </span>
                         {payment.notes && (
-                          <span>{payment.notes}</span>
+                          <span className="truncate max-w-[200px]">{payment.notes}</span>
                         )}
                       </div>
                     </div>
@@ -192,7 +247,7 @@ export default function Payments() {
                     <div className="text-lg font-semibold text-success">
                       +₹{payment.amount.toLocaleString()}
                     </div>
-                    {payment.sessionIds && (
+                    {payment.sessionIds && payment.sessionIds.length > 0 && (
                       <div className="text-xs text-muted-foreground">
                         {payment.sessionIds.length} session(s)
                       </div>
@@ -218,29 +273,29 @@ export default function Payments() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockClients
+            {clients
               .filter(client => client.balance > 0)
               .sort((a, b) => b.balance - a.balance)
               .map((client) => (
-                <div key={client.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 rounded-lg bg-warning-soft text-warning">
+                <div key={client.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border hover:bg-muted/30 transition-colors gap-4">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="p-2 rounded-lg bg-warning-soft text-warning shrink-0">
                       <User className="h-4 w-4" />
                     </div>
                     
-                    <div className="space-y-1">
-                      <div className="font-medium">{client.name}</div>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="font-medium truncate">{client.name}</div>
                       <div className="text-sm text-muted-foreground">
                         {client.totalSessions} sessions • Last payment: {
-                          mockPayments.find(p => p.clientId === client.id)?.date 
-                            ? new Date(mockPayments.find(p => p.clientId === client.id)!.date).toLocaleDateString()
+                          payments.find(p => p.clientId === client.id)?.date 
+                            ? new Date(payments.find(p => p.clientId === client.id)!.date).toLocaleDateString()
                             : 'No payments yet'
                         }
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between sm:justify-end gap-3">
                     <div className="text-right">
                       <div className="text-lg font-semibold text-warning">
                         ₹{client.balance.toLocaleString()}
@@ -249,14 +304,18 @@ export default function Payments() {
                         Outstanding
                       </div>
                     </div>
-                    <Button size="sm" className="bg-success hover:bg-success/90">
+                    <Button 
+                      size="sm" 
+                      className="bg-success hover:bg-success/90 shrink-0"
+                      onClick={() => openQuickPayment(client)}
+                    >
                       Record Payment
                     </Button>
                   </div>
                 </div>
               ))}
             
-            {mockClients.filter(client => client.balance > 0).length === 0 && (
+            {clients.filter(client => client.balance > 0).length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>All payments are up to date!</p>
@@ -269,9 +328,19 @@ export default function Payments() {
       {/* Payment Form Dialog */}
       <PaymentForm
         open={isFormOpen}
-        onOpenChange={setIsFormOpen}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) {
+            setEditingPayment(undefined);
+            setPrefilledClientId(undefined);
+            setPrefilledAmount(undefined);
+          }
+        }}
         clients={clients}
-        onSave={handleAddPayment}
+        payment={editingPayment}
+        prefilledClientId={prefilledClientId}
+        prefilledAmount={prefilledAmount}
+        onSave={editingPayment ? handleEditPayment : handleAddPayment}
       />
     </div>
   );

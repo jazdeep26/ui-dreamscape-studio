@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -55,13 +55,34 @@ export function StaffForm({ open, onOpenChange, staff, onSave }: StaffFormProps)
   const form = useForm<StaffFormData>({
     resolver: zodResolver(staffSchema),
     defaultValues: {
-      name: staff?.name || "",
-      email: staff?.email || "",
-      phone: staff?.phone || "",
-      compensationRate: staff?.compensationRate || 0,
-      compensationType: staff?.compensationType || "percentage",
+      name: "",
+      email: "",
+      phone: "",
+      compensationRate: 0,
+      compensationType: "percentage",
     },
   });
+
+  // Reset form when staff prop changes (for edit mode)
+  useEffect(() => {
+    if (staff) {
+      form.reset({
+        name: staff.name,
+        email: staff.email,
+        phone: staff.phone,
+        compensationRate: staff.compensationRate,
+        compensationType: staff.compensationType,
+      });
+    } else {
+      form.reset({
+        name: "",
+        email: "",
+        phone: "",
+        compensationRate: 0,
+        compensationType: "percentage",
+      });
+    }
+  }, [staff, form]);
 
   const onSubmit = async (data: StaffFormData) => {
     setIsSubmitting(true);

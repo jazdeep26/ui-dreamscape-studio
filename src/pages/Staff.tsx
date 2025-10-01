@@ -214,11 +214,21 @@ export default function Staff() {
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Staff
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      toast({
+                        title: "Coming Soon",
+                        description: "Schedule view feature is under development.",
+                      });
+                    }}>
                       <Calendar className="mr-2 h-4 w-4" />
                       View Schedule
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      toast({
+                        title: "Coming Soon",
+                        description: "Performance report feature is under development.",
+                      });
+                    }}>
                       <TrendingUp className="mr-2 h-4 w-4" />
                       Performance Report
                     </DropdownMenuItem>
@@ -297,10 +307,29 @@ export default function Staff() {
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => {
+                    toast({
+                      title: "Coming Soon",
+                      description: "Schedule view feature is under development.",
+                    });
+                  }}
+                >
                   View Schedule
                 </Button>
-                <Button size="sm" className="flex-1 bg-secondary hover:bg-secondary/90">
+                <Button 
+                  size="sm" 
+                  className="flex-1 bg-secondary hover:bg-secondary/90"
+                  onClick={() => {
+                    toast({
+                      title: "Coming Soon",
+                      description: "Performance report feature is under development.",
+                    });
+                  }}
+                >
                   Performance
                 </Button>
               </div>

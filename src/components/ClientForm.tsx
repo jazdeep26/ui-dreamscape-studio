@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -45,12 +45,31 @@ export function ClientForm({ open, onOpenChange, client, onSave }: ClientFormPro
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
-      name: client?.name || "",
-      email: client?.email || "",
-      phone: client?.phone || "",
-      balance: client?.balance || 0,
+      name: "",
+      email: "",
+      phone: "",
+      balance: 0,
     },
   });
+
+  // Reset form when client prop changes (for edit mode)
+  useEffect(() => {
+    if (client) {
+      form.reset({
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        balance: client.balance,
+      });
+    } else {
+      form.reset({
+        name: "",
+        email: "",
+        phone: "",
+        balance: 0,
+      });
+    }
+  }, [client, form]);
 
   const onSubmit = async (data: ClientFormData) => {
     setIsSubmitting(true);

@@ -3,6 +3,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -13,12 +14,25 @@ import {
   Video,
   User,
   CheckCircle,
-  X
+  X,
+  Filter
 } from "lucide-react";
 import { mockSessions, mockClients, mockStaff } from "@/data/mockData";
 import { Session, Client, Staff } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +44,8 @@ export default function CalendarView() {
   const [sessions, setSessions] = useLocalStorage<Session[]>('clinic_sessions', mockSessions);
   const [clients] = useLocalStorage<Client[]>('clinic_clients', mockClients);
   const [staff] = useLocalStorage<Staff[]>('clinic_staff', mockStaff);
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   const getClientById = (id: string) => clients.find(c => c.id === id);
   const getStaffById = (id: string) => staff.find(s => s.id === id);
@@ -40,7 +56,9 @@ export default function CalendarView() {
   
   const monthSessions = sessions.filter(session => {
     const sessionDate = new Date(session.date);
-    return sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === currentYear;
+    const matchesMonth = sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === currentYear;
+    const matchesStaff = selectedStaffIds.length === 0 || selectedStaffIds.includes(session.staffId);
+    return matchesMonth && matchesStaff;
   });
 
   const handleUpdateSessionStatus = (sessionId: string, status: 'completed' | 'cancelled') => {
@@ -63,6 +81,14 @@ export default function CalendarView() {
       newDate.setMonth(currentDate.getMonth() + 1);
     }
     setCurrentDate(newDate);
+  };
+
+  const toggleStaffFilter = (staffId: string) => {
+    setSelectedStaffIds(prev => 
+      prev.includes(staffId) 
+        ? prev.filter(id => id !== staffId)
+        : [...prev, staffId]
+    );
   };
 
   const generateCalendarDays = () => {
@@ -92,39 +118,87 @@ export default function CalendarView() {
   const calendarDays = generateCalendarDays();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Manage sessions and appointments across your clinic.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select value={viewMode} onValueChange={(value: 'month' | 'week' | 'day') => setViewMode(value)}>
-            <SelectTrigger className="w-full sm:w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Month</SelectItem>
-              <SelectItem value="week">Week</SelectItem>
-              <SelectItem value="day">Day</SelectItem>
-            </SelectContent>
-          </Select>
-          <NewSessionDialog />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Calendar</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Manage sessions and appointments across your clinic.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Popover open={showFilters} onOpenChange={setShowFilters}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Filter className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filter by Staff</span>
+                  {selectedStaffIds.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {selectedStaffIds.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-3">Filter by Staff</h4>
+                    <div className="space-y-2">
+                      {staff.map((member) => (
+                        <div key={member.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={member.id}
+                            checked={selectedStaffIds.includes(member.id)}
+                            onCheckedChange={() => toggleStaffFilter(member.id)}
+                          />
+                          <label
+                            htmlFor={member.id}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {member.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {selectedStaffIds.length > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setSelectedStaffIds([])}
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Select value={viewMode} onValueChange={(value: 'month' | 'week' | 'day') => setViewMode(value)}>
+              <SelectTrigger className="w-28 sm:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="week">Week</SelectItem>
+                <SelectItem value="day">Day</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
       {/* Calendar Header */}
       <Card className="card-shadow border-0">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button variant="outline" size="sm" onClick={() => navigateMonth('prev')}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-lg sm:text-xl font-semibold whitespace-nowrap">
                 {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </h2>
               <Button variant="outline" size="sm" onClick={() => navigateMonth('next')}>
@@ -140,9 +214,55 @@ export default function CalendarView() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+        <CardContent className="p-2 sm:p-6">
+          {/* Mobile: List view */}
+          <div className="block sm:hidden space-y-2">
+            {calendarDays
+              .filter(day => day.getMonth() === currentDate.getMonth())
+              .map((day, index) => {
+                const isToday = day.toDateString() === new Date().toDateString();
+                const daySessions = getSessionsForDay(day);
+                
+                if (daySessions.length === 0) return null;
+                
+                return (
+                  <div key={index} className="border rounded-lg p-3">
+                    <div className={`text-sm font-medium mb-2 ${isToday ? 'text-primary' : ''}`}>
+                      {day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </div>
+                    <div className="space-y-2">
+                      {daySessions.map((session) => {
+                        const client = getClientById(session.clientId);
+                        const staffMember = getStaffById(session.staffId);
+                        
+                        return (
+                          <div key={session.id} className="p-2 rounded-lg border bg-card text-xs">
+                            <div className="font-medium">{client?.name}</div>
+                            <div className="text-muted-foreground flex items-center gap-1 mt-1">
+                              <Clock className="h-3 w-3" />
+                              {session.startTime} • {staffMember?.name}
+                            </div>
+                            <Badge 
+                              variant="secondary"
+                              className={`mt-2 text-xs ${
+                                session.status === 'completed' ? 'status-completed' :
+                                session.status === 'pending' ? 'status-pending' :
+                                session.status === 'cancelled' ? 'status-cancelled' : 'status-scheduled'
+                              }`}
+                            >
+                              {session.status}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+
+          {/* Desktop: Calendar Grid */}
+          <div className="hidden sm:grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
             {/* Day headers */}
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
               <div key={day} className="bg-muted p-2 text-center text-sm font-medium text-muted-foreground">
@@ -159,7 +279,7 @@ export default function CalendarView() {
               return (
                 <div
                   key={index}
-                  className={`min-h-[120px] bg-card p-2 ${
+                  className={`min-h-[100px] lg:min-h-[120px] bg-card p-2 ${
                     !isCurrentMonth ? 'opacity-30' : ''
                   } ${isToday ? 'bg-primary/5 border-2 border-primary/20' : 'border border-transparent'}`}
                 >
@@ -172,14 +292,14 @@ export default function CalendarView() {
                   <div className="space-y-1">
                     {daySessions.slice(0, 3).map((session) => {
                       const client = getClientById(session.clientId);
-                      const staff = getStaffById(session.staffId);
+                      const staffMember = getStaffById(session.staffId);
                       
                       return (
                         <SessionCard
                           key={session.id}
                           session={session}
                           client={client}
-                          staff={staff}
+                          staff={staffMember}
                           isCompact={true}
                         />
                       );
@@ -200,34 +320,48 @@ export default function CalendarView() {
       {/* Today's Sessions */}
       <Card className="card-shadow border-0">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Clock className="h-5 w-5 text-primary" />
             Today's Sessions
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             Sessions scheduled for {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {sessions
-              .filter(session => session.date === new Date().toISOString().split('T')[0])
+              .filter(session => {
+                const isToday = session.date === new Date().toISOString().split('T')[0];
+                const matchesStaff = selectedStaffIds.length === 0 || selectedStaffIds.includes(session.staffId);
+                return isToday && matchesStaff;
+              })
               .map((session) => {
                 const client = getClientById(session.clientId);
-                const staff = getStaffById(session.staffId);
+                const staffMember = getStaffById(session.staffId);
                 
                 return (
                   <SessionCard
                     key={session.id}
                     session={session}
                     client={client}
-                    staff={staff}
+                    staff={staffMember}
                     isCompact={false}
                     showActions={true}
                     onUpdateStatus={handleUpdateSessionStatus}
                   />
                 );
               })}
+            {sessions.filter(session => {
+              const isToday = session.date === new Date().toISOString().split('T')[0];
+              const matchesStaff = selectedStaffIds.length === 0 || selectedStaffIds.includes(session.staffId);
+              return isToday && matchesStaff;
+            }).length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No sessions scheduled for today</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -257,29 +391,29 @@ function SessionCard({
         session.type === 'online' ? 'bg-primary-soft border-primary/20' : 'bg-secondary-soft border-secondary/20'
       }`}>
         <div className="font-medium truncate">{client?.name}</div>
-        <div className="text-muted-foreground">{session.startTime}</div>
+        <div className="text-muted-foreground truncate">{session.startTime}</div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-      <div className="flex items-center gap-4">
-        <div className={`p-2 rounded-lg ${
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/30 transition-colors gap-4">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className={`p-2 rounded-lg shrink-0 ${
           session.type === 'online' ? 'bg-primary-soft text-primary' : 'bg-secondary-soft text-secondary'
         }`}>
           {session.type === 'online' ? <Video className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
         </div>
         
-        <div className="space-y-1">
-          <div className="font-medium">{client?.name}</div>
+        <div className="space-y-1 min-w-0 flex-1">
+          <div className="font-medium truncate">{client?.name}</div>
           <div className="text-sm text-muted-foreground">
             {session.startTime} - {session.duration} mins with {staff?.name}
           </div>
         </div>
       </div>
       
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
         <Badge 
           variant="secondary"
           className={
@@ -292,10 +426,11 @@ function SessionCard({
         </Badge>
         
         {showActions && session.status !== 'completed' && session.status !== 'cancelled' && onUpdateStatus && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button 
               size="sm" 
               variant="outline"
+              className="flex-1 sm:flex-none"
               onClick={() => onUpdateStatus(session.id, 'cancelled')}
             >
               <X className="h-4 w-4 mr-1" />
@@ -303,7 +438,7 @@ function SessionCard({
             </Button>
             <Button 
               size="sm" 
-              className="bg-success hover:bg-success/90"
+              className="bg-success hover:bg-success/90 flex-1 sm:flex-none"
               onClick={() => onUpdateStatus(session.id, 'completed')}
             >
               <CheckCircle className="h-4 w-4 mr-1" />
@@ -313,102 +448,5 @@ function SessionCard({
         )}
       </div>
     </div>
-  );
-}
-
-// New Session Dialog
-function NewSessionDialog() {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
-          <Plus className="mr-2 h-4 w-4" />
-          New Session
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Schedule New Session</DialogTitle>
-          <DialogDescription>
-            Add a new therapy session to the calendar.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label htmlFor="client">Client</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select client" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="c1">John Smith</SelectItem>
-                <SelectItem value="c2">Emily Johnson</SelectItem>
-                <SelectItem value="c3">Michael Davis</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid gap-2">
-            <Label htmlFor="staff">Staff</Label>
-            <Select>
-              <SelectTrigger>
-                <SelectValue placeholder="Select staff" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="s1">Dr. Brown</SelectItem>
-                <SelectItem value="s2">Dr. Smith</SelectItem>
-                <SelectItem value="s3">Therapist Angela</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="grid gap-2">
-              <Label htmlFor="date">Date</Label>
-              <Input type="date" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="time">Time</Label>
-              <Input type="time" />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="grid gap-2">
-              <Label>Duration</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="40">40 minutes</SelectItem>
-                  <SelectItem value="60">1 hour</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Type</Label>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="online">Online</SelectItem>
-                  <SelectItem value="offline">Offline</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex justify-end gap-3">
-          <Button variant="outline">Cancel</Button>
-          <Button className="bg-gradient-to-r from-primary to-accent">
-            Schedule Session
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
